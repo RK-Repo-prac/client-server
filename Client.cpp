@@ -11,7 +11,6 @@ struct sockaddr_in clientaddr;
 
 struct sockaddr_in serveraddr;
 
-
 int main(){
 
     WSADATA wsaData;

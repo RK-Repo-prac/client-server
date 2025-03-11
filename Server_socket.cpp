@@ -18,6 +18,25 @@ struct pollfd ;
 
 struct sockaddr_in socinit;
 fd_set fr,fw,fe;
+struct sockaddr_in client_details;
+
+void acceptconn(int sockfd){
+    int client_addrlen = sizeof(client_details);
+    if(FD_ISSET(sockfd,&fr))
+    {
+        int client_sock=accept(sockfd,(sockaddr*) &client_details,&client_addrlen);
+        std::cout<<"Client IP Addr is: "<<client_details.sin_addr.s_addr<<std::endl;
+        std::cout<<"CLient Port Number is: "<<client_details.sin_port<<std::endl;
+        return;
+    }
+
+    else if (FD_ISSET(sockfd,&fw))
+    {
+        std::cout<<""<<std::endl;
+
+    }
+    
+}
 
 int main() {
 
@@ -85,22 +104,21 @@ int main() {
     while (1)
     {
         FD_ZERO(&fr);
-        FD_ZERO(&fw);
         FD_ZERO(&fe);
         FD_SET(sockfd,&fr);
         FD_SET(sockfd,&fe);
         int selectresult;
-        selectresult=select((sockfd+1), &fr, &fw, &fe , &time_value); // Other way to do is pollfd
+        selectresult=select((sockfd+1), &fr,NULL,&fe , &time_value); // Other way to do is pollfd
         if(selectresult > 0){
             
             std::cout<<"Received new connections"<<std::endl;
-            break;
+            acceptconn(sockfd);
         }else if (selectresult == 0)
         {
             std::cout<<"No New Connections"<<std::endl;  
         }
         else{
-            std::cout<< "Unable" ;
+            std::cout<< "Some error occured while listening to new connections" ;
             closesocket(sockfd);
             WSACleanup();
             exit(EXIT_FAILURE);
