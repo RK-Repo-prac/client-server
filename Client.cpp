@@ -78,7 +78,17 @@ int main(){
         exit(EXIT_FAILURE);
     }
     else{
-        std::cout<<"Connection with the server is established successfully"<<std::endl;
+        char msg[255];
+        int len = recv(clientsockfd, msg, 254, 0); 
+
+        if (len > 0) {
+            msg[len] = '\0';
+            std::cout << "Received " << len << " bytes: " << msg << std::endl;
+        } else if (len == 0) {
+            std::cout << "Server disconnected" << std::endl;
+        } else {
+            std::cout << "Error receiving data" << std::endl;
+        }
 
     }
    closesocket(clientsockfd);

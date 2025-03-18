@@ -13,8 +13,10 @@ struct sockaddr_in {
 	char	sin_zero[8];
 };
 */
-
+#define socketsize 5
 struct pollfd ;
+int socketfd_array[socketsize];
+
 
 struct sockaddr_in socinit;
 fd_set fr,fw,fe;
@@ -27,6 +29,17 @@ void acceptconn(int sockfd){
         int client_sock=accept(sockfd,(sockaddr*) &client_details,&client_addrlen);
         std::cout<<"Client IP Addr is: "<<client_details.sin_addr.s_addr<<std::endl;
         std::cout<<"CLient Port Number is: "<<client_details.sin_port<<std::endl;
+        for(int i=0;i<socketsize;i++){
+           if (socketfd_array[i]==0){
+            socketfd_array[i]=client_sock;
+           }
+           else{
+            std::cout<<"The maximum number of connections have already reached"<<std::endl;
+           }
+
+        }
+        const char* msg="Received the Connection";
+        send(client_sock,msg,strlen(msg),0);
         return;
     }
 
@@ -45,7 +58,7 @@ int main() {
     std::cerr << "WSAStartup failed" << std::endl;
     return 1;
     }
-
+    memset(socketfd_array,0,sizeof(socketfd_array));
     int sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     std::cout<<"The file descriptor assigned to our socket is: "<<sockfd<<std::endl;
     if (sockfd > 0) {
@@ -107,8 +120,15 @@ int main() {
         FD_ZERO(&fe);
         FD_SET(sockfd,&fr);
         FD_SET(sockfd,&fe);
+        for(int i=0;i<socketsize;i++){
+
+            if(socketfd_array[i]!=0)
+            {
+                FD_SET(socketfd_array[i],&fr);
+            }
+        }
         int selectresult;
-        selectresult=select((sockfd+1), &fr,NULL,&fe , &time_value); // Other way to do is pollfd
+        selectresult=select((sockfd+1), &fr,NULL,&fe , &time_value); 
         if(selectresult > 0){
             
             std::cout<<"Received new connections"<<std::endl;
