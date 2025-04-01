@@ -40,7 +40,7 @@ int main() {
         std::string user_input;
         
         while (true) {
-            std::cout << "\nEnter message (or 'exit' to quit): ";
+            std::cout << "\nEnter the temperature you want to convert (or 'exit' to quit): ";
             std::getline(std::cin, user_input);
             
             if (user_input == "exit") {

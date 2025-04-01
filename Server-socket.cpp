@@ -2,6 +2,8 @@
 #include <ws2tcpip.h>
 #include <stdio.h>
 #include <iostream>
+#include <vector>
+#include <string>
 #include "Socket-TCP.h"
 #pragma comment(lib, "Ws2_32.lib")
 
@@ -12,6 +14,20 @@
 int socketfd_array[SOCKET_MAX];
 struct sockaddr_in client_details;
 char buffer[BUFFER_SIZE];
+
+
+std::vector<std::string> split(const std::string& str, char delimiter) {
+    std::vector<std::string> result;
+    size_t start = 0, end;
+    
+    while ((end = str.find(delimiter, start)) != std::string::npos) {
+        result.push_back(str.substr(start, end - start));
+        start = end + 1;
+    }
+    result.push_back(str.substr(start));
+    
+    return result;
+}
 
 void acceptconn(Socket_TCP& socket) {
     if (socket.fd_isset()) {
@@ -61,9 +77,32 @@ void process_client_messages() {
                 
                 if (bytes_read > 0) {
                     buffer[bytes_read] = '\0';
-                    std::cout << "Received from client " << i << ": " << buffer << std::endl;
+                    std::string st(buffer);
+                    std::vector<std::string> substring = split(buffer, ' ');
+                    if (!substring.empty()) {
+                        if(substring[1]=="C")
+                        {
+                            int num = std::stoi(substring[0]);  
+                            int convertnum=(1.8*num)+32;
+                            std::string strnum = std::to_string(convertnum);
+                            send(socketfd_array[i], strnum.c_str(), strnum.length(), 0);
+                        }
+                        else if (substring[1]=="F")
+                        {
+                            int num = std::stoi(substring[0]);  
+                            int convertnum=(num-32)*0.55;
+                            std::string strnum = std::to_string(convertnum);
+                            send(socketfd_array[i], strnum.c_str(), strnum.length(), 0);
+                        }
+                        else{
+
+                             std::string errmsg="Its neither Farenheit nor Celsius";
+                             send(socketfd_array[i], errmsg.c_str(), errmsg.length(), 0);
+                        }
+                        
+                        
+                    }
                     
-                    send(socketfd_array[i], buffer, bytes_read, 0);
                 } else if (bytes_read == 0) {
                     std::cout << "Client " << i << " disconnected" << std::endl;
                     closesocket(socketfd_array[i]);
