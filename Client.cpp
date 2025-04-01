@@ -1,97 +1,81 @@
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#include <stdio.h>
-#include <iostream>
-
 #pragma comment(lib, "Ws2_32.lib")
+#include "Socket-TCP.h"
+#include <iostream>
+#include <string>
 
 #define PORT 8888
+#define BUFFER_SIZE 1024
 
-struct sockaddr_in clientaddr;
-
-struct sockaddr_in serveraddr;
-
-int main(){
-
-    WSADATA wsaData;
-    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
-    std::cerr << "WSAStartup failed" << std::endl;
-    exit(EXIT_FAILURE);
-    }
-
-   int clientsockfd=socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
-
-
-   if(clientsockfd<0){
-    std::cout<<"The socket Initialization is not successful"<<std::endl;
-    closesocket(clientsockfd);
-    WSACleanup();
-    exit(EXIT_FAILURE);
-   }
-   else{
-    std::cout<< "The socket is created successfully"<<std::endl;
-   }
-   
-   memset(&clientaddr, 0, sizeof(clientaddr));
-   clientaddr.sin_addr.s_addr=INADDR_ANY;
-   clientaddr.sin_family=AF_INET;
-   clientaddr.sin_port=htons(PORT);
-   int option=1;
-   int sockoptres=setsockopt(clientsockfd, SOL_SOCKET, SO_REUSEADDR,(const char*) &option, sizeof(option)); //used to set socket Options.
-    if (sockoptres < 0)
-    {
-        std::cout<<"Unable to Set our Socket Option"<<std::endl;
-        closesocket(clientsockfd);
-        WSACleanup();
-        exit(EXIT_FAILURE);
-
-    }
-    else{
-        std::cout<<"SockOption is set successfully :"<<std::endl;
-
-    }
-   
-   int bindres=bind(clientsockfd,(sockaddr*)&clientaddr, sizeof(clientaddr));
-   if (bindres < 0)
-    {
-        std::cout<<"Unable to bind the port number to our socket"<<std::endl;
-        closesocket(clientsockfd);
-        WSACleanup();
-        exit(EXIT_FAILURE);
-    }
-    else{
-        std::cout<<"Binding is successful"<<std::endl;
-
-    }
-
-    memset(&serveraddr,0,sizeof(serveraddr));
-    serveraddr.sin_addr.s_addr=inet_addr("127.0.0.1");
-    serveraddr.sin_family=AF_INET;
-    serveraddr.sin_port=htons(7777);
-
-    int connectRes=connect(clientsockfd,(sockaddr*)&serveraddr,sizeof(serveraddr));
-    if (connectRes < 0)
-    {
-        std::cout<<"Unable to connect to Server"<<std::endl;
-        closesocket(clientsockfd);
-        WSACleanup();
-        exit(EXIT_FAILURE);
-    }
-    else{
-        char msg[255];
-        int len = recv(clientsockfd, msg, 254, 0); 
-
-        if (len > 0) {
-            msg[len] = '\0';
-            std::cout << "Received " << len << " bytes: " << msg << std::endl;
-        } else if (len == 0) {
-            std::cout << "Server disconnected" << std::endl;
-        } else {
-            std::cout << "Error receiving data" << std::endl;
+int main() {
+    try {
+        Socket_TCP client_socket(AF_INET, PORT, INADDR_ANY);
+        
+        struct sockaddr_in server_addr;
+        memset(&server_addr, 0, sizeof(server_addr));
+        server_addr.sin_family = AF_INET;
+        server_addr.sin_port = htons(7777);
+        
+        if (inet_pton(AF_INET, "127.0.0.1", &server_addr.sin_addr) <= 0) {
+            std::cerr << "Invalid address or address not supported" << std::endl;
+            client_socket.close_sock();
+            WSACleanup();
+            return 1;
         }
-
+        
+        int sockfd = client_socket.get_sockfd();
+        int connect_result = client_socket.sock_connect(sockfd, server_addr);
+        if (connect_result < 0) {
+            std::cerr << "Failed to connect to server" << std::endl;
+            return 1;
+        }
+        
+        std::cout << "Connected to server at 127.0.0.1:7777" << std::endl;
+        
+        int received = client_socket.receive();
+        if (received <= 0) {
+            std::cerr << "Failed to receive initial message" << std::endl;
+        }
+        
+        char buffer[BUFFER_SIZE];
+        std::string user_input;
+        
+        while (true) {
+            std::cout << "\nEnter message (or 'exit' to quit): ";
+            std::getline(std::cin, user_input);
+            
+            if (user_input == "exit") {
+                break;
+            }
+            
+            int send_result = send(sockfd, user_input.c_str(), user_input.length(), 0);
+            if (send_result == SOCKET_ERROR) {
+                std::cerr << "Failed to send message, error: " << WSAGetLastError() << std::endl;
+                break;
+            }
+            
+            memset(buffer, 0, BUFFER_SIZE);
+            int recv_result = recv(sockfd, buffer, BUFFER_SIZE - 1, 0);
+            
+            if (recv_result > 0) {
+                buffer[recv_result] = '\0';
+                std::cout << "Server response: " << buffer << std::endl;
+            } else if (recv_result == 0) {
+                std::cout << "Server closed the connection" << std::endl;
+                break;
+            } else {
+                std::cerr << "Error receiving data: " << WSAGetLastError() << std::endl;
+                break;
+            }
+        }
+        
+        client_socket.close_sock();
+        WSACleanup();
+        
+    } catch (const std::exception& e) {
+        std::cerr << "Exception: " << e.what() << std::endl;
+        WSACleanup();
+        return 1;
     }
-   closesocket(clientsockfd);
-   WSACleanup();
-   return 0;
+    
+    return 0;
 }
